@@ -1,16 +1,13 @@
-import './App.css'
+
+import { Routes, Route } from 'react-router-dom';
+import OpeningPage from './pages/OpeningPage';
 
 function App() {
-
   return (
-    <>
-      <div>
-        <h1 className="text-3xl font-bold underline">
-          Hello world!
-        </h1>
-      </div>
-    </>
-  )
+    <Routes>
+      <Route path="/" element={<OpeningPage />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;
