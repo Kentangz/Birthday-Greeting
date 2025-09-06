@@ -3,7 +3,7 @@ import { useLoader, useFrame } from '@react-three/fiber';
 import { TextureLoader, MathUtils } from 'three';
 import Ring from './Ring';
 
-const Planet = ({ texturePath, size, hasRing = false, ringTexturePath, axialTilt = 0, rotationSpeed = 0.1 }) => {
+const Planet = ({ texturePath, size, hasRing = false, ringTexturePath, axialTilt = 0, rotationSpeed = 0.1, onPlanetClick }) => {
   const texture = useLoader(TextureLoader, texturePath);
   const planetRef = useRef();
 
@@ -22,7 +22,7 @@ const Planet = ({ texturePath, size, hasRing = false, ringTexturePath, axialTilt
   return (
     <group>
       <group ref={planetRef}>
-        <mesh>
+        <mesh onClick={onPlanetClick}>
           <sphereGeometry args={[size, 32, 32]} />
           <meshStandardMaterial map={texture} />
         </mesh>
