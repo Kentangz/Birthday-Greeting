@@ -7,7 +7,7 @@ function ShootingStar() {
   const ref = useRef()
   useFrame((state) => {
     const t = state.clock.getElapsedTime() * 5
-    ref.current.position.set(Math.sin(t) * 20, Math.atan(t) * Math.cos(t / 2) * 2, Math.cos(t) * 4)
+    ref.current.position.set(Math.sin(t) * 25, Math.atan(t) * Math.cos(t / 2) * 6, Math.cos(t) * 4)
   })
   return (
     <Trail width={5} length={8} color={new THREE.Color(2, 1, 10)} attenuation={(t) => t * t}>

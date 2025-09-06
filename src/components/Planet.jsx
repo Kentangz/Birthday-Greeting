@@ -1,24 +1,34 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import { useLoader, useFrame } from '@react-three/fiber';
+import { TextureLoader, MathUtils } from 'three';
+import Ring from './Ring';
 
-// This component is now a simple presentational component.
-// All animation logic will be handled by its parent (SolarSystem).
-const Planet = ({ size, color, emissiveColor, hasRing = false }) => {
+const Planet = ({ texturePath, size, hasRing = false, ringTexturePath, axialTilt = 0, rotationSpeed = 0.1 }) => {
+  const texture = useLoader(TextureLoader, texturePath);
+  const planetRef = useRef();
+
+  useEffect(() => {
+    if (planetRef.current) {
+      planetRef.current.rotation.z = MathUtils.degToRad(axialTilt);
+    }
+  }, [axialTilt]);
+
+  useFrame(() => {
+    if (planetRef.current) {
+      planetRef.current.rotation.y += rotationSpeed * 0.01;
+    }
+  });
+
   return (
     <group>
-      <mesh>
-        <sphereGeometry args={[size, 32, 32]} />
-        <meshStandardMaterial 
-          color={color} 
-          emissive={emissiveColor || color}
-          emissiveIntensity={0.2} 
-          toneMapped={false}
-        />
-      </mesh>
-      {hasRing && (
-        <mesh rotation-x={Math.PI / 2}>
-          <torusGeometry args={[size * 1.5, 0.1, 16, 100]} />
-          <meshStandardMaterial color="#aaa" emissive="#aaa" emissiveIntensity={0.1} toneMapped={false} />
+      <group ref={planetRef}>
+        <mesh>
+          <sphereGeometry args={[size, 32, 32]} />
+          <meshStandardMaterial map={texture} />
         </mesh>
+      </group>
+      {hasRing && ringTexturePath && (
+        <Ring size={size} ringTexturePath={ringTexturePath} />
       )}
     </group>
   );
