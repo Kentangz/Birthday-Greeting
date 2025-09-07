@@ -8,7 +8,6 @@ const SUN_ROTATION_SPEED = 0.0005;
 const ANIMATION_DURATION = 2.0;
 const SUN_AXIAL_TILT = 7.25;
 
-// Lighting constants for better control
 const SUN_LIGHT_INTENSITY = 100;
 const SUN_LIGHT_DISTANCE = 10;
 const SUN_EMISSIVE_INTENSITY = 2;
@@ -17,15 +16,14 @@ const AMBIENT_LIGHT_INTENSITY = 0.1;
 const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) => {
   const { camera } = useThree();
 
-  // Sun configuration as first "planet" (index 0)
   const sun = useMemo(() => ({
     name: 'sun',
     texturePath: '/textures/sun.jpg',
     size: 6,
-    orbitalRadius: 0, // Sun stays at center
-    orbitalSpeed: 0,  // Sun doesn't orbit
+    orbitalRadius: 0
+    orbitalSpeed: 0,
     axialTilt: SUN_AXIAL_TILT,
-    isSun: true, // Special flag to identify sun
+    isSun: true,
     rotationSpeed: SUN_ROTATION_SPEED
   }), []);
 
@@ -45,7 +43,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
   const planetRefs = useRef([]);
   const sunRef = useRef();
   
-  // Track selected celestial body index (-1 for sun, 0+ for planets)
   const [selectedBodyIndex, setSelectedBodyIndex] = useState(null);
   
   const [animationState, setAnimationState] = useState({
@@ -55,15 +52,12 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     startCameraTarget: new Vector3(),
   });
 
-  // Reusable Vector3 objects for performance
   const tempVec1 = useRef(new Vector3());
   const tempVec2 = useRef(new Vector3());
   const tempVec3 = useRef(new Vector3());
 
-  // Cache current planet positions (sun is always at origin)
   const currentPlanetPositions = useRef(planets.map(() => new Vector3()));
 
-  // Helper function to get celestial body position
   const getCelestialBodyPosition = (bodyIndex, time, targetVector = null) => {
     if (bodyIndex === -1) {
       // Sun is always at origin
@@ -74,7 +68,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
       return new Vector3(0, 0, 0);
     }
     
-    // Regular planet calculation
     const planet = planets[bodyIndex];
     const { orbitalRadius, orbitalSpeed } = planet;
     
@@ -89,12 +82,10 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     return new Vector3(x, 0, z);
   };
 
-  // Helper function for smooth interpolation (easing)
   const easeInOutCubic = (t) => {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   };
 
-  // Get current camera target (more robust than assuming origin)
   const getCurrentCameraTarget = () => {
     const direction = tempVec1.current;
     camera.getWorldDirection(direction);
@@ -166,7 +157,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
     const currentTime = clock.getElapsedTime();
     
-    // Update planet positions and cache them
     planetRefs.current.forEach((ref, i) => {
       if (ref) {
         getCelestialBodyPosition(i, currentTime, currentPlanetPositions.current[i]);
@@ -174,27 +164,23 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
       }
     });
 
-    // Handle custom animation
     if (animationState.isAnimating && selectedBodyIndex !== null) {
       const elapsed = currentTime - animationState.startTime;
       const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
       const easedProgress = easeInOutCubic(progress);
       
-      // Get current body position
       let currentBodyPos;
       let bodySize;
       
       if (selectedBodyIndex === -1) {
-        // Sun
         currentBodyPos = new Vector3(0, 0, 0);
         bodySize = sun.size;
       } else {
-        // Planet
         currentBodyPos = currentPlanetPositions.current[selectedBodyIndex];
         bodySize = planets[selectedBodyIndex].size;
       }
       
-      // Calculate target camera position
+      // target camera position
       const offsetDistance = bodySize * CAMERA_OFFSET_MULTIPLIER;
       const targetCameraPos = tempVec2.current.set(
         currentBodyPos.x,
@@ -202,32 +188,27 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         currentBodyPos.z + offsetDistance
       );
       
-      // Interpolate camera position using temp vectors
       const newCameraPos = tempVec1.current.lerpVectors(
         animationState.startCameraPos,
         targetCameraPos,
         easedProgress
       );
       
-      // Interpolate camera target
       const currentTarget = tempVec3.current.lerpVectors(
         animationState.startCameraTarget,
         currentBodyPos,
         easedProgress
       );
       
-      // Update camera
       camera.position.copy(newCameraPos);
       camera.lookAt(currentTarget);
       
-      // Check if animation is complete
       if (progress >= 1) {
         setAnimationState(prev => ({ ...prev, isAnimating: false }));
         console.log('Animation complete - Perfect sync!');
       }
     }
     
-    // Handle chase cam mode (after animation completed)
     else if (selectedBodyIndex !== null && !animationState.isAnimating) {
       let currentBodyPos;
       let bodySize;
@@ -237,7 +218,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         currentBodyPos = new Vector3(0, 0, 0);
         bodySize = sun.size;
       } else {
-        // Planet
         currentBodyPos = currentPlanetPositions.current[selectedBodyIndex];
         bodySize = planets[selectedBodyIndex].size;
       }
@@ -257,10 +237,9 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
   return (
     <>
-      {/* Ambient light untuk pencahayaan dasar yang lembut */}
+
       <ambientLight intensity={AMBIENT_LIGHT_INTENSITY} color={0x404040} />
       
-      {/* Sun as clickable object */}
       <group
         ref={sunRef}
         onClick={(e) => {
@@ -283,25 +262,22 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
             emissiveMap={useLoader(TextureLoader, sun.texturePath)}
             emissive={0xffc100}  
             emissiveIntensity={SUN_EMISSIVE_INTENSITY}
-            // Tambahan properties untuk realism
-            roughness={1.0}  // Sun tidak reflective
-            metalness={0.0}  // Sun bukan metal
+            roughness={1.0}
+            metalness={0.0}
           />
         </mesh>
         
-        {/* Point light dari Sun - cahaya utama sistem */}
         <pointLight 
           intensity={SUN_LIGHT_INTENSITY} 
           distance={SUN_LIGHT_DISTANCE}
-          color={0xffffff}  // Cahaya putih natural
-          decay={2}  // Realistic light falloff
+          color={0xffffff}
+          decay={2}
         />
         
-        {/* Optional: Lens flare effect dengan additional lights */}
         <pointLight 
           intensity={50} 
           distance={300}
-          color={0xffe9c1}  // Cahaya hangat untuk atmosphere
+          color={0xffe9c1}
           decay={1}
         />
       </group>
