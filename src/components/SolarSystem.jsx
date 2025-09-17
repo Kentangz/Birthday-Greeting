@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import React, { useRef, useEffect, useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { MathUtils, Vector3 } from 'three';
+import React, { useRef, useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { Vector3 } from 'three';
 
 import OrbitGizmos from './OrbitGizmos';
 import PlanetGroup from './PlanetGroup';
@@ -12,7 +12,6 @@ import { useFocusCamera } from '../hooks/useFocusCamera';
 import { emitFocusStatus } from '../utils/a11y';
 import { getCircularOrbitPosition } from '../utils/orbit';
 
-const SUN_ROTATION_SPEED = 0.0005;
 const SUN_AXIAL_TILT = 7.25;
 
 let sharedAudioContext = null;
@@ -38,7 +37,7 @@ function playFocusSound(volume = 0.08, muted = false) {
   osc.stop(now + 0.4);
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }, ref) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false, onSunMeshReady }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
@@ -53,7 +52,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
   const planets = useMemo(() => PLANETS_CFG, []);
 
   const planetRefs = useRef([]);
-  const sunRef = useRef();
   
   const [selectedBodyIndex, setSelectedBodyIndex] = useState(null);
 
@@ -101,11 +99,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     }
   }, [isAnimating, selectedBodyIndex, deselectAndReset, audioVolume, muted, beginAnimation, setControlsEnabled, onFocusChange, planets, sun.displayName, sun.displayNameId, sun.size, sun.axialTilt]);
 
-  useEffect(() => {
-    if (sunRef.current) {
-      sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
-    }
-  }, []);
+  // Sun axial tilt is handled inside Sun component
 
   // Expose imperative controls for keyboard/UI navigation
   useImperativeHandle(ref, () => ({
@@ -142,17 +136,16 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
       }
       handleCelestialBodyClick(prevIndex);
     },
-    // Placeholder to avoid undefined access on Enter key
-    focusHovered: () => {},
   }), [deselectAndReset, handleCelestialBodyClick, isAnimating, planets.length, selectedBodyIndex]);
 
+  // Make dwell time short for responsiveness (slightly larger than animation)
   useAutoTour({
     enabled: autoTourEnabled,
     isAnimating,
     selectedIndex: selectedBodyIndex,
     itemsLength: planets.length,
     onStep: (idx) => handleCelestialBodyClick(idx),
-    intervalMs: 4000,
+    intervalMs: Math.max(1800, ANIMATION_DURATION * 1000 + 200),
   });
 
   useFrame(({ clock }) => {
@@ -185,17 +178,16 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
       <ambientLight intensity={AMBIENT_LIGHT_INTENSITY} color={0x404040} />
       <directionalLight position={[30, 50, 30]} intensity={0.8} castShadow />
 
-      <group ref={sunRef}>
-        <Sun
-          size={sun.size}
-          texturePath={sun.texturePath}
-          axialTilt={sun.axialTilt}
-          onClick={() => handleCelestialBodyClick(-1)}
-          onDoubleClick={() => handleCelestialBodyClick(-1)}
-          onHover={() => { document.body.style.cursor = 'pointer'; }}
-          onUnhover={() => { document.body.style.cursor = 'auto'; }}
-        />
-      </group>
+      <Sun
+        size={sun.size}
+        texturePath={sun.texturePath}
+        axialTilt={sun.axialTilt}
+        onClick={() => handleCelestialBodyClick(-1)}
+        onDoubleClick={() => handleCelestialBodyClick(-1)}
+        onHover={() => { document.body.style.cursor = 'pointer'; }}
+        onUnhover={() => { document.body.style.cursor = 'auto'; }}
+        onMeshReady={onSunMeshReady}
+      />
 
       {showGizmos && <OrbitGizmos planets={planets} />}
 

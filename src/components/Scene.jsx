@@ -6,6 +6,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
+import { GODRAYS_WEIGHT, GODRAYS_EXPOSURE } from '../config/constants';
 
 function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, photoMode = false }) {
   const cameraControlsRef = useRef();
@@ -26,8 +27,6 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
         solarSystemRef.current.focusNext();
       } else if (e.key === 'ArrowLeft') {
         solarSystemRef.current.focusPrev();
-      } else if (e.key === 'Enter') {
-        solarSystemRef.current.focusHovered();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -87,8 +86,8 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
             samples={32}
             density={0.6}
             decay={0.93}
-            weight={0.14}
-            exposure={0.28}
+            weight={GODRAYS_WEIGHT}
+            exposure={GODRAYS_EXPOSURE}
             clampMax={1}
             kernelSize={3}
             blur={true}

@@ -2,7 +2,7 @@ import { useLoader } from '@react-three/fiber'
 import React, { useRef, useEffect } from 'react'
 import { TextureLoader, MathUtils } from 'three'
 
-function Sun({ size, texturePath, axialTilt, onClick, onDoubleClick, onHover, onUnhover }) {
+function Sun({ size, texturePath, axialTilt, onClick, onDoubleClick, onHover, onUnhover, onMeshReady }) {
 	const sunRef = useRef()
 	const sunTexture = useLoader(TextureLoader, texturePath)
 
@@ -11,6 +11,12 @@ function Sun({ size, texturePath, axialTilt, onClick, onDoubleClick, onHover, on
 			sunRef.current.rotation.z = MathUtils.degToRad(axialTilt)
 		}
 	}, [axialTilt])
+
+	useEffect(() => {
+		if (sunRef.current && onMeshReady) {
+			onMeshReady(sunRef.current)
+		}
+	}, [onMeshReady])
 
 	return (
 		<group

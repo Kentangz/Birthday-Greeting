@@ -1,41 +1,45 @@
-import js from '@eslint/js'
-import { defineConfig, globalIgnores } from 'eslint/config'
-import importPlugin from 'eslint-plugin-import'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import globals from 'globals'
+import js from "@eslint/js";
+import { defineConfig, globalIgnores } from "eslint/config";
+import importPlugin from "eslint-plugin-import";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import globals from "globals";
 
 export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{js,jsx}'],
-    extends: [
-      js.configs.recommended,
-      reactHooks.configs['recommended-latest'],
-      reactRefresh.configs.vite,
-    ],
-    plugins: {
-      import: importPlugin,
-    },
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        ecmaFeatures: { jsx: true },
-        sourceType: 'module',
-      },
-    },
-    rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
-      'import/order': [
-        'warn',
-        {
-          'groups': [['builtin', 'external', 'internal'], ['parent', 'sibling', 'index']],
-          'newlines-between': 'always',
-          'alphabetize': { order: 'asc', caseInsensitive: true },
-        }
-      ],
-    },
-  },
-])
+	globalIgnores(["dist"]),
+	{
+		files: ["**/*.{js,jsx}"],
+		extends: [
+			js.configs.recommended,
+			reactHooks.configs["recommended-latest"],
+			reactRefresh.configs.vite,
+		],
+		plugins: {
+			import: importPlugin,
+		},
+		languageOptions: {
+			ecmaVersion: 2020,
+			globals: globals.browser,
+			parserOptions: {
+				ecmaVersion: "latest",
+				ecmaFeatures: { jsx: true },
+				sourceType: "module",
+			},
+		},
+		rules: {
+			"no-unused-vars": ["error", { varsIgnorePattern: "^[A-Z_]" }],
+			// Unused import/export analysis is handled via bundle report to reduce noise in flat config
+			"import/order": [
+				"warn",
+				{
+					groups: [
+						["builtin", "external", "internal"],
+						["parent", "sibling", "index"],
+					],
+					"newlines-between": "always",
+					alphabetize: { order: "asc", caseInsensitive: true },
+				},
+			],
+		},
+	},
+]);
