@@ -1,83 +1,84 @@
 import * as THREE from 'three'
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Trail } from '@react-three/drei'
+import { Trail, Line } from '@react-three/drei'
 
-// Single electron orbit dengan rotasi
-function ElectronOrbit({ speed, size, trailLength, color, offset, rotations, radius }) {
+// Moving particle that travels along an ellipse in the XY plane
+function EllipseRunner({ a = 6, b = 2.8, speed = 1, size = 0.2, trailLength = 20, colorHex = '#61dafb', offset = 0, rotationZ = 0 }) {
   const ref = useRef()
-  
+
   useFrame((state) => {
     const t = (state.clock.getElapsedTime() + offset) * speed
-    
-    // Orbit elips dasar
-    let x = radius.x * Math.cos(t)
-    let y = radius.y * Math.sin(t)
-    let z = 0
-    
-    // Apply rotations
-    rotations.forEach(([axis, angle]) => {
-      if (axis === 'x') {
-        [y, z] = [y * Math.cos(angle) - z * Math.sin(angle), y * Math.sin(angle) + z * Math.cos(angle)]
-      } else if (axis === 'y') {
-        [x, z] = [x * Math.cos(angle) + z * Math.sin(angle), -x * Math.sin(angle) + z * Math.cos(angle)]
-      } else if (axis === 'z') {
-        [x, y] = [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)]
-      }
-    }
-    )
-    
+    const x = a * Math.cos(t)
+    const y = b * Math.sin(t)
+    const z = 0
     ref.current.position.set(x, y, z)
   })
-  
-  return (
-    <Trail width={3} length={trailLength} color={new THREE.Color(...color)} attenuation={(t) => t * t}>
-      <mesh ref={ref}>
-        <sphereGeometry args={[size]} />
-        <meshBasicMaterial color={color.map(c => c * 2)} toneMapped={false} />
-      </mesh>
-    </Trail>
-  )
-}
 
-// Atom dengan orbit configuration
-function AtomicShootingStar({ 
-  speed = 25, 
-  size = 0.2, 
-  trailLength = 15, 
-}) {
-  // Helper function untuk convert derajat ke radian
-  const toRad = (deg) => (deg * Math.PI) / 180
-  
-  // Konfigurasi orbit dengan nilai derajat yang kamu inginkan
-  const orbits = [
-    { rotations: [['x', toRad(0)], ['y', toRad(45)], ['z', toRad(135)]], offset: 0 },
-    { rotations: [['x', toRad(180)], ['y', toRad(225)], ['z', toRad(315)]], offset: Math.PI },
-    { rotations: [['x', toRad(90)], ['y', toRad(135)], ['z', toRad(225)]], offset: Math.PI  } // Orbit ketiga untuk melengkapi
-  ]
-  
-  const commonProps = {
-    speed: speed,
-    size: size,
-    trailLength: trailLength,
-    color: [1, 5, 10],
-    radius: { x: 6, y: 6 } // Lingkaran penuh
-  }
-  
   return (
-    <group>
-      {/* Generate orbits */}
-      {orbits.map((orbit, i) => (
-        <ElectronOrbit
-          key={i}
-          {...commonProps}
-          speed={speed * (1 + i * 0.05)} // Sedikit variasi kecepatan
-          offset={orbit.offset}
-          rotations={orbit.rotations}
-        />
-      ))}
+    <group rotation={[0, 0, rotationZ]}>
+      <Trail width={3} length={trailLength} color={new THREE.Color(colorHex)} attenuation={(t) => t * t}>
+        <mesh ref={ref}>
+          <sphereGeometry args={[size]} />
+          <meshBasicMaterial color={colorHex} toneMapped={false} />
+        </mesh>
+      </Trail>
     </group>
   )
 }
 
-export default AtomicShootingStar
+// Static ellipse outline for visual reference
+function EllipseOutline({ a = 6, b = 2.8, segments = 128, color = '#61dafb', opacity = 0.35, rotationZ = 0 }) {
+  const points = useMemo(() => {
+    const pts = []
+    for (let i = 0; i <= segments; i++) {
+      const t = (i / segments) * Math.PI * 2
+      pts.push(new THREE.Vector3(a * Math.cos(t), b * Math.sin(t), 0))
+    }
+    return pts
+  }, [a, b, segments])
+
+  return (
+    <group rotation={[0, 0, rotationZ]}>
+      <Line points={points} color={color} transparent opacity={opacity} lineWidth={1} />
+    </group>
+  )
+}
+
+// React-like atomic logo: three rotated ellipses and a nucleus
+function ReactLogoShootingStar({ speed = 2.2, size = 0.18, trailLength = 10 }) {
+  const a = 10
+  const b = 6.8
+  const rotations = [0, THREE.MathUtils.degToRad(60), THREE.MathUtils.degToRad(-60)]
+  const colorHex = '#61dafb'
+
+  return (
+    <group>
+      {rotations.map((rz, i) => (
+        <EllipseOutline key={`outline-${i}`} a={a} b={b} rotationZ={rz} />
+      ))}
+
+      {rotations.map((rz, i) => (
+        <EllipseRunner
+          key={`runner-${i}`}
+          a={a}
+          b={b}
+          rotationZ={rz}
+          speed={speed * (1 + i * 0.08)}
+          size={size}
+          trailLength={trailLength}
+          colorHex={colorHex}
+          offset={i * (Math.PI / 3)}
+        />
+      ))}
+
+      {/* nucleus */}
+      <mesh>
+        <sphereGeometry args={[0.35, 24, 24]} />
+        <meshBasicMaterial color={colorHex} toneMapped={false} />
+      </mesh>
+    </group>
+  )
+}
+
+export default ReactLogoShootingStar

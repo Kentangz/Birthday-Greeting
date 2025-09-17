@@ -46,11 +46,13 @@ function playFocusSound(volume = 0.08, muted = false) {
   }
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false, showLabels = false, onSunMeshReady }, ref) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
     name: 'sun',
+    displayName: 'Sun',
+    displayNameId: 'Matahari',
     texturePath: '/textures/sun.jpg',
     size: 6,
     axialTilt: SUN_AXIAL_TILT,
@@ -61,14 +63,14 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
   const sunTexture = useLoader(TextureLoader, sun.texturePath);
 
   const planets = useMemo(() => [
-    { name: 'mercury', displayName: 'Mercury', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
-    { name: 'venus', displayName: 'Venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
-    { name: 'earth', displayName: 'Earth', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
-    { name: 'mars', displayName: 'Mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
-    { name: 'jupiter', displayName: 'Jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
-    { name: 'saturn', displayName: 'Saturn', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
-    { name: 'uranus', displayName: 'Uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
-    { name: 'neptune', displayName: 'Neptune', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
+    { name: 'mercury', displayName: 'Mercury', displayNameId: 'Merkurius', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
+    { name: 'venus', displayName: 'Venus', displayNameId: 'Venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
+    { name: 'earth', displayName: 'Earth', displayNameId: 'Bumi', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
+    { name: 'mars', displayName: 'Mars', displayNameId: 'Mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
+    { name: 'jupiter', displayName: 'Jupiter', displayNameId: 'Jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
+    { name: 'saturn', displayName: 'Saturn', displayNameId: 'Saturnus', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
+    { name: 'uranus', displayName: 'Uranus', displayNameId: 'Uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
+    { name: 'neptune', displayName: 'Neptune', displayNameId: 'Neptunus', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
   ], []);
 
   const planetRefs = useRef([]);
@@ -170,12 +172,11 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     if (sunRef.current) {
       sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
     }
-    if (onSunMeshReady && sunMeshRef.current) {
-      onSunMeshReady(sunMeshRef.current);
+    if (sunMeshRef.current && typeof window !== 'undefined') {
+      // noop for onSunMeshReady removal in this version
     }
-  }, [onSunMeshReady]);
+  }, []);
 
-  // Start immediately when enabling auto-tour and nothing is selected
   useEffect(() => {
     if (autoTourEnabled && selectedBodyIndex === null && !animationState.isAnimating) {
       const nextIndex = 0;
@@ -183,7 +184,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     }
   }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating]);
 
-  // Auto-tour: cycle focus every N seconds when enabled
   useEffect(() => {
     if (!autoTourEnabled) return;
     const interval = setInterval(() => {
@@ -194,6 +194,11 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     return () => clearInterval(interval);
   }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating, planets.length]);
   
+  const emitFocusA11y = (nameEn, nameId) => {
+    const event = new CustomEvent('a11y-focus-status', { detail: { en: `Focusing ${nameEn}`, id: `Fokus ${nameId}` } });
+    window.dispatchEvent(event);
+  };
+
   const handleCelestialBodyClick = (bodyIndex) => {
     if (animationState.isAnimating) return;
     
@@ -217,10 +222,12 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     setControlsEnabled(false);
 
     if (bodyIndex === -1) {
-      onFocusChange?.({ displayName: 'Sun', size: sun.size, orbitalRadius: 0, axialTilt: sun.axialTilt });
+      onFocusChange?.({ displayName: sun.displayName, displayNameId: sun.displayNameId, size: sun.size, orbitalRadius: 0, axialTilt: sun.axialTilt });
+      emitFocusA11y(sun.displayName, sun.displayNameId);
     } else {
       const p = planets[bodyIndex];
-      onFocusChange?.({ displayName: p.displayName, size: p.size, orbitalRadius: p.orbitalRadius, axialTilt: p.axialTilt });
+      onFocusChange?.({ displayName: p.displayName, displayNameId: p.displayNameId, size: p.size, orbitalRadius: p.orbitalRadius, axialTilt: p.axialTilt });
+      emitFocusA11y(p.displayName, p.displayNameId);
     }
   };
   
@@ -371,7 +378,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
             rotationSpeed={planet.orbitalSpeed} 
             onPlanetClick={() => handleCelestialBodyClick(i)}
             onPlanetDoubleClick={() => handleCelestialBodyClick(i)}
-            showLabel={showLabels}
           />
         </group>
       ))}
