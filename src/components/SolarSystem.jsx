@@ -76,6 +76,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
   const sunMeshRef = useRef();
   
   const [selectedBodyIndex, setSelectedBodyIndex] = useState(null);
+  const [hoveredBodyIndex, setHoveredBodyIndex] = useState(null);
   
   const [animationState, setAnimationState] = useState({
     isAnimating: false,
@@ -151,6 +152,17 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
       if (animationState.isAnimating) return;
       const prevIndex = selectedBodyIndex === null ? planets.length - 1 : (selectedBodyIndex - 1 + planets.length) % planets.length;
       handleCelestialBodyClick(prevIndex);
+    },
+    focusHovered() {
+      if (animationState.isAnimating) return;
+      if (hoveredBodyIndex === null) return;
+      handleCelestialBodyClick(hoveredBodyIndex);
+    },
+    focusIndex(index) {
+      if (animationState.isAnimating) return;
+      if (index === -1 || (index >= 0 && index < planets.length)) {
+        handleCelestialBodyClick(index);
+      }
     }
   }));
   
@@ -309,8 +321,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
         ref={sunRef}
         onClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
         onDoubleClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
-        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
-        onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; }}
+        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; setHoveredBodyIndex(-1); }}
+        onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; setHoveredBodyIndex(null); }}
       >
         <mesh ref={sunMeshRef} castShadow receiveShadow>
           <sphereGeometry args={[sun.size, 32, 32]} />
@@ -351,6 +363,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
         <group
           key={planet.name}
           ref={(el) => (planetRefs.current[i] = el)}
+          onPointerOver={(e) => { e.stopPropagation(); setHoveredBodyIndex(i); }}
+          onPointerOut={(e) => { e.stopPropagation(); setHoveredBodyIndex(null); }}
         >
           <Planet 
             {...planet} 

@@ -6,7 +6,7 @@ import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
 
-function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, showLabels = false }) {
+function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, showLabels = false, photoMode = false }) {
   const cameraControlsRef = useRef();
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const solarSystemRef = useRef();
@@ -18,8 +18,15 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape' && solarSystemRef.current) {
+      if (!solarSystemRef.current) return;
+      if (e.key === 'Escape') {
         solarSystemRef.current.deselectPlanet();
+      } else if (e.key === 'ArrowRight') {
+        solarSystemRef.current.focusNext();
+      } else if (e.key === 'ArrowLeft') {
+        solarSystemRef.current.focusPrev();
+      } else if (e.key === 'Enter') {
+        solarSystemRef.current.focusHovered();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -37,6 +44,7 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
       camera={{ position: [0, 40, 80], fov: 45 }}
       onPointerMissed={handlePointerMissed}
       shadows
+      dpr={photoMode ? [1, 2] : [1, 1.5]}
     >
       {/* Parallax star layers */}
       <Stars saturation={false} count={80} speed={0.5} radius={120} depth={50} factor={2} />
@@ -68,6 +76,8 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
       <CameraControls
         ref={cameraControlsRef}
         enabled={controlsEnabled}
+        minDistance={10}
+        maxDistance={140}
       />
 
       <EffectComposer>

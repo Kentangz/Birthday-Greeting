@@ -11,7 +11,7 @@ function OpeningPage() {
   const [orbitSpeed, setOrbitSpeed] = useState(1);
   const [focusInfo, setFocusInfo] = useState(null);
   const [autoTour, setAutoTour] = useState(false);
-  const [showLabels, setShowLabels] = useState(false);
+  const [photoMode, setPhotoMode] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -23,6 +23,16 @@ function OpeningPage() {
       audio.play().catch(() => {/* autoplay may be blocked */});
     }
   }, [muted, volume]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        setPhotoMode(v => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const handleNext = () => {
     if (solarSystemRef.current?.focusNext) {
@@ -45,66 +55,93 @@ function OpeningPage() {
         onFocusChange={setFocusInfo}
         solarSystemExternalRef={solarSystemRef}
         autoTourEnabled={autoTour}
-        showLabels={showLabels}
+        photoMode={photoMode}
       />
-      <ShootingStarOverlay /> 
-      <h1 className="main-text z-10">Happy Birthday!</h1>
+      {!photoMode && <ShootingStarOverlay />}
+      {!photoMode && <h1 className="main-text z-10">Happy Birthday!</h1>}
 
-      {/* Background ambient music */}
       <audio ref={audioRef} src="/textures/ambient.mp3" loop autoPlay style={{ display: 'none' }} />
 
-      {/* Controls Overlay */}
-      <div style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: '12px',
-        alignItems: 'center',
-        background: 'rgba(0,0,0,0.5)',
-        padding: '10px 14px',
-        borderRadius: '10px',
-        border: '1px solid rgba(255,255,255,0.15)',
-        zIndex: 20
-      }}>
-        <button onClick={handlePrev} style={{ padding: '6px 10px', cursor: 'pointer' }}>Prev</button>
-        <button onClick={handleNext} style={{ padding: '6px 10px', cursor: 'pointer' }}>Next</button>
+      {!photoMode && (
+        <div className="glass controls" role="toolbar" aria-label="Scene controls">
+          <div className="control-group" aria-label="Navigation">
+            <button className="icon-btn tooltip" data-tooltip="Previous (←)" onClick={handlePrev} aria-label="Previous planet">
+              <span className="icon" aria-hidden="true">{/* left */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </button>
+            <button className="icon-btn tooltip" data-tooltip="Next (→)" onClick={handleNext} aria-label="Next planet">
+              <span className="icon" aria-hidden="true">{/* right */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </span>
+            </button>
+          </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
+          <div className="divider" />
 
-        <button onClick={() => setAutoTour(v => !v)} style={{ padding: '6px 10px', cursor: 'pointer' }}>{autoTour ? 'Pause tour' : 'Play tour'}</button>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-          <span>Labels</span>
-        </label>
+          <div className="control-group" aria-label="Tour">
+            <button className="icon-btn tooltip" data-tooltip={autoTour ? 'Pause tour' : 'Play tour'} onClick={() => setAutoTour(v => !v)} aria-pressed={autoTour} aria-label={autoTour ? 'Pause tour' : 'Play tour'}>
+              <span className="icon" aria-hidden="true">
+                {autoTour ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 6h-2v12h2V6zm6 0h-2v12h2V6z" fill="#fff"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 5v14l11-7L8 5z" fill="#fff"/></svg>
+                )}
+              </span>
+            </button>
+          </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
+          <div className="divider" />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>Orbit speed</span>
-          <input type="range" min="0.5" max="2" step="0.1" value={orbitSpeed} onChange={(e) => setOrbitSpeed(parseFloat(e.target.value))} />
-        </label>
+          <div className="control-group" aria-label="Orbit speed">
+            <span className="label" style={{ opacity: 0.9 }}>Orbit</span>
+            <input className="tooltip" data-tooltip="Orbit speed" type="range" min="0.5" max="2" step="0.1" value={orbitSpeed} onChange={(e) => setOrbitSpeed(parseFloat(e.target.value))} aria-valuemin={0.5} aria-valuemax={2} aria-valuenow={orbitSpeed} />
+          </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
+          <div className="divider" />
 
-        <button onClick={() => setMuted(m => !m)} style={{ padding: '6px 10px', cursor: 'pointer' }}>{muted ? 'Unmute' : 'Mute'}</button>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>Volume</span>
-          <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))} />
-        </label>
-      </div>
+          <div className="control-group" aria-label="Audio">
+            <button className="icon-btn tooltip" data-tooltip={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted(m => !m)} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'}>
+              <span className="icon" aria-hidden="true">
+                {muted ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 9v6H5l-4 4V5l4 4h4zm13.414 2l-3-3-2.121 2.121L19.172 12l-1.879 1.879L19.414 16l3-3z" fill="#fff"/></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.74 2.5-2.26 2.5-4.03zM14 3.23v2.06c3.39.49 6 3.39 6 6.71s-2.61 6.22-6 6.71v2.06c4.45-.52 8-4.27 8-8.77s-3.55-8.25-8-8.77z" fill="#fff"/></svg>
+                )}
+              </span>
+            </button>
+            <input className="tooltip" data-tooltip="Volume" type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))} aria-valuemin={0} aria-valuemax={1} aria-valuenow={volume} />
+          </div>
 
-      {/* Focus Info Panel */}
-      {focusInfo && (
-        <div style={{
+          <div className="divider" />
+
+          <div className="control-group" aria-label="Photo mode">
+            <button className="btn tooltip" data-tooltip="Photo mode" onClick={() => setPhotoMode(v => !v)}></button>
+          </div>
+        </div>
+      )}
+
+      {photoMode && (
+        <button
+          onClick={() => setPhotoMode(false)}
+          className="exit-photo"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 25
+          }}
+        >
+          Exit Photo (P)
+        </button>
+      )}
+
+      {!photoMode && focusInfo && (
+        <div className="info-panel" style={{
           position: 'absolute',
           top: '16px',
           right: '16px',
-          background: 'rgba(0,0,0,0.5)',
           padding: '12px 14px',
-          borderRadius: '10px',
-          border: '1px solid rgba(255,255,255,0.15)',
           zIndex: 20,
           minWidth: '200px'
         }}>
