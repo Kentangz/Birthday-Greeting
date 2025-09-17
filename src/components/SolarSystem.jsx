@@ -1,243 +1,126 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { useFrame, useLoader, useThree } from '@react-three/fiber';
-import { TextureLoader, MathUtils, Vector3 } from 'three';
-import Planet from './Planet';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { MathUtils, Vector3 } from 'three';
+import { SUN as SUN_CFG, PLANETS as PLANETS_CFG } from '../config/planets.config';
+import { getCircularOrbitPosition } from '../utils/orbit';
+import { emitFocusStatus } from '../utils/a11y';
+import { useAutoTour } from '../hooks/useAutoTour';
+import { useFocusCamera } from '../hooks/useFocusCamera';
+import OrbitGizmos from './OrbitGizmos';
+import Sun from './Sun';
+import PlanetGroup from './PlanetGroup';
 
-// Cinematic tuning
 const CAMERA_OFFSET_MULTIPLIER = 7;
 const SUN_ROTATION_SPEED = 0.0005;
 const ANIMATION_DURATION = 2.5;
 const SUN_AXIAL_TILT = 7.25;
 
-const SUN_LIGHT_INTENSITY = 80; // reduced from 100
-const SUN_LIGHT_DISTANCE = 10;
-const SUN_EMISSIVE_INTENSITY = 1.2; // reduced from 2
 const AMBIENT_LIGHT_INTENSITY = 0.1;
 
 let sharedAudioContext = null;
 function playFocusSound(volume = 0.08, muted = false) {
   if (muted || volume <= 0) return;
-  try {
-    if (!sharedAudioContext) {
-      sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = sharedAudioContext;
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(680, now + 0.25);
-
-    const peak = Math.max(0.0001, Math.min(1, volume));
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(peak, now + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.4);
-  } catch {
-    /* no-op */
+  if (!sharedAudioContext) {
+    sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
+  const ctx = sharedAudioContext;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(320, now);
+  osc.frequency.exponentialRampToValueAtTime(680, now + 0.25);
+  const peak = Math.max(0.0001, Math.min(1, volume));
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(peak, now + 0.05);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.4);
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }, ref) => {
+const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
-    name: 'sun',
-    displayName: 'Sun',
-    displayNameId: 'Matahari',
-    texturePath: '/textures/sun.jpg',
-    size: 6,
+    name: SUN_CFG.name,
+    displayName: SUN_CFG.displayName,
+    displayNameId: SUN_CFG.displayNameId,
+    texturePath: SUN_CFG.texturePath,
+    size: SUN_CFG.size,
     axialTilt: SUN_AXIAL_TILT,
-    isSun: true,
-    rotationSpeed: SUN_ROTATION_SPEED
   }), []);
 
-  const sunTexture = useLoader(TextureLoader, sun.texturePath);
-
-  const planets = useMemo(() => [
-    { name: 'mercury', displayName: 'Mercury', displayNameId: 'Merkurius', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
-    { name: 'venus', displayName: 'Venus', displayNameId: 'Venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
-    { name: 'earth', displayName: 'Earth', displayNameId: 'Bumi', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
-    { name: 'mars', displayName: 'Mars', displayNameId: 'Mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
-    { name: 'jupiter', displayName: 'Jupiter', displayNameId: 'Jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
-    { name: 'saturn', displayName: 'Saturn', displayNameId: 'Saturnus', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
-    { name: 'uranus', displayName: 'Uranus', displayNameId: 'Uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
-    { name: 'neptune', displayName: 'Neptune', displayNameId: 'Neptunus', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
-  ], []);
+  const planets = useMemo(() => PLANETS_CFG, []);
 
   const planetRefs = useRef([]);
   const sunRef = useRef();
-  const sunMeshRef = useRef();
   
   const [selectedBodyIndex, setSelectedBodyIndex] = useState(null);
-  const [hoveredBodyIndex, setHoveredBodyIndex] = useState(null);
-  
-  const [animationState, setAnimationState] = useState({
-    isAnimating: false,
-    startTime: 0,
-    startCameraPos: new Vector3(),
-    startCameraTarget: new Vector3(),
-  });
 
-  const tempVec1 = useRef(new Vector3());
-  const tempVec2 = useRef(new Vector3());
-  const tempVec3 = useRef(new Vector3());
+  const { isAnimating, beginAnimation, animateTo, chase } = useFocusCamera({ camera, animationDuration: ANIMATION_DURATION, offsetMultiplier: CAMERA_OFFSET_MULTIPLIER });
 
   const currentPlanetPositions = useRef(planets.map(() => new Vector3()));
 
   const getCelestialBodyPosition = (bodyIndex, time, targetVector = null) => {
     if (bodyIndex === -1) {
-      if (targetVector) {
-        targetVector.set(0, 0, 0);
-        return targetVector;
-      }
+      if (targetVector) { targetVector.set(0, 0, 0); return targetVector; }
       return new Vector3(0, 0, 0);
     }
-    
-    const planet = planets[bodyIndex];
-    const { orbitalRadius, orbitalSpeed } = planet;
-    
-    const x = Math.sin(time * (orbitalSpeed * orbitSpeedMultiplier)) * orbitalRadius;
-    const z = Math.cos(time * (orbitalSpeed * orbitSpeedMultiplier)) * orbitalRadius;
-    
-    if (targetVector) {
-      targetVector.set(x, 0, z);
-      return targetVector;
-    }
-    
-    return new Vector3(x, 0, z);
+    const p = planets[bodyIndex];
+    return getCircularOrbitPosition(time, p.orbitalRadius, p.orbitalSpeed * orbitSpeedMultiplier, targetVector || undefined);
   };
 
-  const easeInOutCubic = (t) => {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-  };
-
-  const getCurrentCameraTarget = () => {
-    const direction = tempVec1.current;
-    camera.getWorldDirection(direction);
-    direction.multiplyScalar(camera.position.length());
-    return camera.position.clone().add(direction);
-  };
-
-  const deselectAndReset = () => {
-    setAnimationState(prev => ({ ...prev, isAnimating: false }));
+  const deselectAndReset = useCallback(() => {
     setSelectedBodyIndex(null);
     setControlsEnabled(false);
     onFocusChange?.(null);
-    
     if (cameraControlsRef.current) {
       cameraControlsRef.current.reset(true).then(() => {
         setControlsEnabled(true);
       });
     }
-  };
+  }, [cameraControlsRef, onFocusChange, setControlsEnabled]);
 
-  useImperativeHandle(ref, () => ({
-    deselectPlanet() {
-      if (animationState.isAnimating) return;
-      deselectAndReset();
-    },
-    focusNext() {
-      if (animationState.isAnimating) return;
-      const nextIndex = selectedBodyIndex === null ? 0 : (selectedBodyIndex + 1) % planets.length;
-      handleCelestialBodyClick(nextIndex);
-    },
-    focusPrev() {
-      if (animationState.isAnimating) return;
-      const prevIndex = selectedBodyIndex === null ? planets.length - 1 : (selectedBodyIndex - 1 + planets.length) % planets.length;
-      handleCelestialBodyClick(prevIndex);
-    },
-    focusHovered() {
-      if (animationState.isAnimating) return;
-      if (hoveredBodyIndex === null) return;
-      handleCelestialBodyClick(hoveredBodyIndex);
-    },
-    focusIndex(index) {
-      if (animationState.isAnimating) return;
-      if (index === -1 || (index >= 0 && index < planets.length)) {
-        handleCelestialBodyClick(index);
-      }
-    }
-  }));
-  
-  useEffect(() => {
-    if (sunRef.current) {
-      sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
-    }
-    if (sunMeshRef.current && typeof window !== 'undefined') {
-      // noop for onSunMeshReady removal in this version
-    }
-  }, []);
-
-  useEffect(() => {
-    if (autoTourEnabled && selectedBodyIndex === null && !animationState.isAnimating) {
-      const nextIndex = 0;
-      handleCelestialBodyClick(nextIndex);
-    }
-  }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating]);
-
-  useEffect(() => {
-    if (!autoTourEnabled) return;
-    const interval = setInterval(() => {
-      if (animationState.isAnimating) return;
-      const nextIndex = selectedBodyIndex === null ? 0 : (selectedBodyIndex + 1) % planets.length;
-      handleCelestialBodyClick(nextIndex);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating, planets.length]);
-  
-  const emitFocusA11y = (nameEn, nameId) => {
-    const event = new CustomEvent('a11y-focus-status', { detail: { en: `Focusing ${nameEn}`, id: `Fokus ${nameId}` } });
-    window.dispatchEvent(event);
-  };
-
-  const handleCelestialBodyClick = (bodyIndex) => {
-    if (animationState.isAnimating) return;
-    
-    if (selectedBodyIndex === bodyIndex) {
-      deselectAndReset();
-      return;
-    }
+  const handleCelestialBodyClick = useCallback((bodyIndex) => {
+    if (isAnimating) return;
+    if (selectedBodyIndex === bodyIndex) { deselectAndReset(); return; }
 
     playFocusSound(audioVolume, muted);
-    
-    const currentTime = performance.now() / 1000;
-    
-    setAnimationState({
-      isAnimating: true,
-      startTime: currentTime,
-      startCameraPos: camera.position.clone(),
-      startCameraTarget: getCurrentCameraTarget(),
-    });
-    
+    beginAnimation();
+
     setSelectedBodyIndex(bodyIndex);
     setControlsEnabled(false);
 
     if (bodyIndex === -1) {
       onFocusChange?.({ displayName: sun.displayName, displayNameId: sun.displayNameId, size: sun.size, orbitalRadius: 0, axialTilt: sun.axialTilt });
-      emitFocusA11y(sun.displayName, sun.displayNameId);
+      emitFocusStatus(sun.displayName, sun.displayNameId);
     } else {
       const p = planets[bodyIndex];
       onFocusChange?.({ displayName: p.displayName, displayNameId: p.displayNameId, size: p.size, orbitalRadius: p.orbitalRadius, axialTilt: p.axialTilt });
-      emitFocusA11y(p.displayName, p.displayNameId);
+      emitFocusStatus(p.displayName, p.displayNameId);
     }
-  };
-  
-  useFrame(({ clock }) => {
-    if (sunRef.current) {
-      sunRef.current.rotation.y += SUN_ROTATION_SPEED; 
-    }
+  }, [isAnimating, selectedBodyIndex, deselectAndReset, audioVolume, muted, beginAnimation, setControlsEnabled, onFocusChange, planets, sun.displayName, sun.displayNameId, sun.size, sun.axialTilt]);
 
+  useEffect(() => {
+    if (sunRef.current) {
+      sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
+    }
+  }, []);
+
+  useAutoTour({
+    enabled: autoTourEnabled,
+    isAnimating,
+    selectedIndex: selectedBodyIndex,
+    itemsLength: planets.length,
+    onStep: (idx) => handleCelestialBodyClick(idx),
+    intervalMs: 4000,
+  });
+
+  useFrame(({ clock }) => {
     const currentTime = clock.getElapsedTime();
-    
+
     planetRefs.current.forEach((ref, i) => {
       if (ref) {
         getCelestialBodyPosition(i, currentTime, currentPlanetPositions.current[i]);
@@ -245,144 +128,53 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
       }
     });
 
-    if (animationState.isAnimating && selectedBodyIndex !== null) {
-      const elapsed = currentTime - animationState.startTime;
-      const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-      const easedProgress = easeInOutCubic(progress);
-      
-      let currentBodyPos;
-      let bodySize;
-      
-      if (selectedBodyIndex === -1) {
-        currentBodyPos = new Vector3(0, 0, 0);
-        bodySize = sun.size;
-      } else {
-        currentBodyPos = currentPlanetPositions.current[selectedBodyIndex];
-        bodySize = planets[selectedBodyIndex].size;
-      }
-      
-      const offsetDistance = bodySize * CAMERA_OFFSET_MULTIPLIER;
-      const targetCameraPos = tempVec2.current.set(
-        currentBodyPos.x,
-        currentBodyPos.y,
-        currentBodyPos.z + offsetDistance
-      );
-      
-      const newCameraPos = tempVec1.current.lerpVectors(
-        animationState.startCameraPos,
-        targetCameraPos,
-        easedProgress
-      );
-      
-      const currentTarget = tempVec3.current.lerpVectors(
-        animationState.startCameraTarget,
-        currentBodyPos,
-        easedProgress
-      );
-      
-      camera.position.copy(newCameraPos);
-      camera.lookAt(currentTarget);
-      
-      if (progress >= 1) {
-        setAnimationState(prev => ({ ...prev, isAnimating: false }));
-      }
-    }
-    
-    else if (selectedBodyIndex !== null && !animationState.isAnimating) {
-      let currentBodyPos;
-      let bodySize;
-      
-      if (selectedBodyIndex === -1) {
-        currentBodyPos = new Vector3(0, 0, 0);
-        bodySize = sun.size;
-      } else {
-        currentBodyPos = currentPlanetPositions.current[selectedBodyIndex];
-        bodySize = planets[selectedBodyIndex].size;
-      }
-      
-      const offsetDistance = bodySize * CAMERA_OFFSET_MULTIPLIER;
-      
-      const cameraPosition = tempVec1.current.set(
-        currentBodyPos.x,
-        currentBodyPos.y,
-        currentBodyPos.z + offsetDistance
-      );
-
-      camera.position.copy(cameraPosition);
-      camera.lookAt(currentBodyPos);
+    if (isAnimating && selectedBodyIndex !== null) {
+      let currentBodyPos, bodySize;
+      if (selectedBodyIndex === -1) { currentBodyPos = new Vector3(0,0,0); bodySize = sun.size; }
+      else { currentBodyPos = currentPlanetPositions.current[selectedBodyIndex]; bodySize = planets[selectedBodyIndex].size; }
+      animateTo({ currentBodyPos, bodySize, currentTime });
+    } else if (selectedBodyIndex !== null && !isAnimating) {
+      let currentBodyPos, bodySize;
+      if (selectedBodyIndex === -1) { currentBodyPos = new Vector3(0,0,0); bodySize = sun.size; }
+      else { currentBodyPos = currentPlanetPositions.current[selectedBodyIndex]; bodySize = planets[selectedBodyIndex].size; }
+      chase({ currentBodyPos, bodySize });
     }
   });
+
+  const isDev = import.meta.env?.MODE !== 'production';
 
   return (
     <>
       <ambientLight intensity={AMBIENT_LIGHT_INTENSITY} color={0x404040} />
+      <directionalLight position={[30, 50, 30]} intensity={0.8} castShadow />
 
-      {/* Directional light for shadows */}
-      <directionalLight
-        position={[30, 50, 30]}
-        intensity={0.8}
-        castShadow
-      />
-      
-      <group
-        ref={sunRef}
-        onClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
-        onDoubleClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
-        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; setHoveredBodyIndex(-1); }}
-        onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; setHoveredBodyIndex(null); }}
-      >
-        <mesh ref={sunMeshRef} castShadow receiveShadow>
-          <sphereGeometry args={[sun.size, 32, 32]} />
-          <meshStandardMaterial
-            map={sunTexture}
-            emissiveMap={sunTexture}
-            emissive={0xffc100}  
-            emissiveIntensity={SUN_EMISSIVE_INTENSITY}
-            roughness={1.0}
-            metalness={0.0}
-          />
-        </mesh>
-        
-        <pointLight 
-          intensity={SUN_LIGHT_INTENSITY} 
-          distance={SUN_LIGHT_DISTANCE}
-          color={0xffffff}
-          decay={2}
-        />
-        
-        <pointLight 
-          intensity={40} 
-          distance={300}
-          color={0xffe9c1}
-          decay={1}
+      <group ref={sunRef}>
+        <Sun
+          size={sun.size}
+          texturePath={sun.texturePath}
+          axialTilt={sun.axialTilt}
+          onClick={() => handleCelestialBodyClick(-1)}
+          onDoubleClick={() => handleCelestialBodyClick(-1)}
+          onHover={() => { document.body.style.cursor = 'pointer'; }}
+          onUnhover={() => { document.body.style.cursor = 'auto'; }}
         />
       </group>
 
-      {/* Orbit lines */}
-      {planets.map((planet) => (
-        <mesh key={`${planet.name}-orbit`} rotation-x={-Math.PI / 2} receiveShadow>
-          <ringGeometry args={[planet.orbitalRadius - 0.02, planet.orbitalRadius + 0.02, 128]} />
-          <meshBasicMaterial color={0xffffff} transparent opacity={0.15} />
-        </mesh>
-      ))}
+      {isDev && <OrbitGizmos planets={planets} />}
 
       {planets.map((planet, i) => (
-        <group
+        <PlanetGroup
           key={planet.name}
-          ref={(el) => (planetRefs.current[i] = el)}
-          onPointerOver={(e) => { e.stopPropagation(); setHoveredBodyIndex(i); }}
-          onPointerOut={(e) => { e.stopPropagation(); setHoveredBodyIndex(null); }}
-        >
-          <Planet 
-            {...planet} 
-            rotationSpeed={planet.orbitalSpeed} 
-            onPlanetClick={() => handleCelestialBodyClick(i)}
-            onPlanetDoubleClick={() => handleCelestialBodyClick(i)}
-          />
-        </group>
+          planet={planet}
+          groupRef={(el) => (planetRefs.current[i] = el)}
+          onHover={(e) => { e.stopPropagation(); }}
+          onUnhover={(e) => { e.stopPropagation(); }}
+          onClick={() => handleCelestialBodyClick(i)}
+          onDoubleClick={() => handleCelestialBodyClick(i)}
+        />
       ))}
     </>
   );
-});
+};
 
 export default SolarSystem;
