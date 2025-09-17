@@ -4,7 +4,7 @@ import { TextureLoader, MathUtils, Vector3 } from 'three';
 import Planet from './Planet';
 
 // Cinematic tuning
-const CAMERA_OFFSET_MULTIPLIER = 7; 
+const CAMERA_OFFSET_MULTIPLIER = 7;
 const SUN_ROTATION_SPEED = 0.0005;
 const ANIMATION_DURATION = 2.5;
 const SUN_AXIAL_TILT = 7.25;
@@ -14,9 +14,9 @@ const SUN_LIGHT_DISTANCE = 10;
 const SUN_EMISSIVE_INTENSITY = 2;
 const AMBIENT_LIGHT_INTENSITY = 0.1;
 
-// Simple WebAudio focus sound
 let sharedAudioContext = null;
-function playFocusSound() {
+function playFocusSound(volume = 0.08, muted = false) {
+  if (muted || volume <= 0) return;
   try {
     if (!sharedAudioContext) {
       sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -27,13 +27,13 @@ function playFocusSound() {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    // Subtle whoosh: upward glide and quick fade
     osc.type = 'sine';
     osc.frequency.setValueAtTime(320, now);
     osc.frequency.exponentialRampToValueAtTime(680, now + 0.25);
 
+    const peak = Math.max(0.0001, Math.min(1, volume));
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(peak, now + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
 
     osc.connect(gain);
@@ -42,11 +42,11 @@ function playFocusSound() {
     osc.start(now);
     osc.stop(now + 0.4);
   } catch {
-    // ignore audio errors (e.g., autoplay restrictions)
+    /* no-op */
   }
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
@@ -60,16 +60,15 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
   const sunTexture = useLoader(TextureLoader, sun.texturePath);
 
-  // Cinematic orbit radii/speeds (slightly larger spacing, more contrast in speeds)
   const planets = useMemo(() => [
-    { name: 'mercury', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
-    { name: 'venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
-    { name: 'earth', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
-    { name: 'mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
-    { name: 'jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
-    { name: 'saturn', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
-    { name: 'uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
-    { name: 'neptune', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
+    { name: 'mercury', displayName: 'Mercury', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
+    { name: 'venus', displayName: 'Venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
+    { name: 'earth', displayName: 'Earth', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
+    { name: 'mars', displayName: 'Mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
+    { name: 'jupiter', displayName: 'Jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
+    { name: 'saturn', displayName: 'Saturn', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
+    { name: 'uranus', displayName: 'Uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
+    { name: 'neptune', displayName: 'Neptune', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
   ], []);
 
   const planetRefs = useRef([]);
@@ -102,8 +101,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     const planet = planets[bodyIndex];
     const { orbitalRadius, orbitalSpeed } = planet;
     
-    const x = Math.sin(time * orbitalSpeed) * orbitalRadius;
-    const z = Math.cos(time * orbitalSpeed) * orbitalRadius;
+    const x = Math.sin(time * (orbitalSpeed * orbitSpeedMultiplier)) * orbitalRadius;
+    const z = Math.cos(time * (orbitalSpeed * orbitSpeedMultiplier)) * orbitalRadius;
     
     if (targetVector) {
       targetVector.set(x, 0, z);
@@ -128,41 +127,41 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     setAnimationState(prev => ({ ...prev, isAnimating: false }));
     setSelectedBodyIndex(null);
     setControlsEnabled(false);
+    onFocusChange?.(null);
     
     if (cameraControlsRef.current) {
       cameraControlsRef.current.reset(true).then(() => {
         setControlsEnabled(true);
       });
     }
-    console.log('Focus released');
   };
 
   useImperativeHandle(ref, () => ({
     deselectPlanet() {
-      if (animationState.isAnimating) {
-        console.log('Animation in progress - onPointerMissed blocked');
-        return;
-      }
+      if (animationState.isAnimating) return;
       deselectAndReset();
+    },
+    focusNext() {
+      if (animationState.isAnimating) return;
+      const nextIndex = selectedBodyIndex === null ? 0 : (selectedBodyIndex + 1) % planets.length;
+      handleCelestialBodyClick(nextIndex);
+    },
+    focusPrev() {
+      if (animationState.isAnimating) return;
+      const prevIndex = selectedBodyIndex === null ? planets.length - 1 : (selectedBodyIndex - 1 + planets.length) % planets.length;
+      handleCelestialBodyClick(prevIndex);
     }
   }));
   
   const handleCelestialBodyClick = (bodyIndex) => {
-    if (animationState.isAnimating) {
-      console.log('Animation in progress - celestial body click blocked');
-      return;
-    }
+    if (animationState.isAnimating) return;
     
     if (selectedBodyIndex === bodyIndex) {
       deselectAndReset();
       return;
     }
 
-    const bodyName = bodyIndex === -1 ? 'sun' : planets[bodyIndex].name;
-    console.log(`Focusing on: ${bodyName}`);
-
-    // play focus sound on selection
-    playFocusSound();
+    playFocusSound(audioVolume, muted);
     
     const currentTime = performance.now() / 1000;
     
@@ -175,6 +174,14 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     
     setSelectedBodyIndex(bodyIndex);
     setControlsEnabled(false);
+
+    // Inform parent about focus target
+    if (bodyIndex === -1) {
+      onFocusChange?.({ displayName: 'Sun', size: sun.size, orbitalRadius: 0, axialTilt: sun.axialTilt });
+    } else {
+      const p = planets[bodyIndex];
+      onFocusChange?.({ displayName: p.displayName, size: p.size, orbitalRadius: p.orbitalRadius, axialTilt: p.axialTilt });
+    }
   };
   
   useEffect(() => {
@@ -237,7 +244,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
       
       if (progress >= 1) {
         setAnimationState(prev => ({ ...prev, isAnimating: false }));
-        console.log('Animation complete - Perfect sync!');
       }
     }
     
@@ -269,23 +275,22 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
   return (
     <>
       <ambientLight intensity={AMBIENT_LIGHT_INTENSITY} color={0x404040} />
+
+      {/* Directional light for shadows */}
+      <directionalLight
+        position={[30, 50, 30]}
+        intensity={0.8}
+        castShadow
+      />
       
       <group
         ref={sunRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          handleCelestialBodyClick(-1);
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = 'auto';
-        }}
+        onClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
+        onDoubleClick={(e) => { e.stopPropagation(); handleCelestialBodyClick(-1); }}
+        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; }}
       >
-        <mesh>
+        <mesh castShadow receiveShadow>
           <sphereGeometry args={[sun.size, 32, 32]} />
           <meshStandardMaterial
             map={sunTexture}
@@ -312,6 +317,14 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         />
       </group>
 
+      {/* Orbit lines */}
+      {planets.map((planet) => (
+        <mesh key={`${planet.name}-orbit`} rotation-x={-Math.PI / 2} receiveShadow>
+          <ringGeometry args={[planet.orbitalRadius - 0.02, planet.orbitalRadius + 0.02, 128]} />
+          <meshBasicMaterial color={0xffffff} transparent opacity={0.15} />
+        </mesh>
+      ))}
+
       {planets.map((planet, i) => (
         <group
           key={planet.name}
@@ -321,6 +334,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
             {...planet} 
             rotationSpeed={planet.orbitalSpeed} 
             onPlanetClick={() => handleCelestialBodyClick(i)}
+            onPlanetDoubleClick={() => handleCelestialBodyClick(i)}
           />
         </group>
       ))}

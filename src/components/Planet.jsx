@@ -4,7 +4,7 @@ import { TextureLoader, MathUtils } from 'three';
 import { Html } from '@react-three/drei';
 import Ring from './Ring';
 
-const Planet = ({ name, texturePath, size, hasRing = false, ringTexturePath, axialTilt = 0, rotationSpeed = 0.1, onPlanetClick }) => {
+const Planet = ({ name, texturePath, size, hasRing = false, ringTexturePath, axialTilt = 0, rotationSpeed = 0.1, onPlanetClick, onPlanetDoubleClick }) => {
   const texture = useLoader(TextureLoader, texturePath);
   const planetRef = useRef();
   const [hovered, setHovered] = useState(false);
@@ -26,8 +26,11 @@ const Planet = ({ name, texturePath, size, hasRing = false, ringTexturePath, axi
       <group ref={planetRef}>
         <mesh 
           onClick={onPlanetClick}
+          onDoubleClick={onPlanetDoubleClick}
           onPointerOver={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = 'pointer'; }}
           onPointerOut={(e) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = 'auto'; }}
+          castShadow
+          receiveShadow
         >
           <sphereGeometry args={[size, 32, 32]} />
           <meshStandardMaterial map={texture} />
