@@ -46,7 +46,7 @@ function playFocusSound(volume = 0.08, muted = false) {
   }
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange }, ref) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false, showLabels = false }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
@@ -153,6 +153,27 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     }
   }));
   
+  // Start immediately when enabling auto-tour and nothing is selected
+  useEffect(() => {
+    if (autoTourEnabled && selectedBodyIndex === null && !animationState.isAnimating) {
+      console.log('[AutoTour] starting at index 0');
+      const nextIndex = 0;
+      handleCelestialBodyClick(nextIndex);
+    }
+  }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating]);
+
+  // Auto-tour: cycle focus every N seconds when enabled
+  useEffect(() => {
+    if (!autoTourEnabled) return;
+    const interval = setInterval(() => {
+      if (animationState.isAnimating) return; // wait until animation done
+      const nextIndex = selectedBodyIndex === null ? 0 : (selectedBodyIndex + 1) % planets.length;
+      console.log('[AutoTour] switching to index', nextIndex);
+      handleCelestialBodyClick(nextIndex);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [autoTourEnabled, selectedBodyIndex, animationState.isAnimating, planets.length]);
+  
   const handleCelestialBodyClick = (bodyIndex) => {
     if (animationState.isAnimating) return;
     
@@ -175,7 +196,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     setSelectedBodyIndex(bodyIndex);
     setControlsEnabled(false);
 
-    // Inform parent about focus target
     if (bodyIndex === -1) {
       onFocusChange?.({ displayName: 'Sun', size: sun.size, orbitalRadius: 0, axialTilt: sun.axialTilt });
     } else {
@@ -335,6 +355,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
             rotationSpeed={planet.orbitalSpeed} 
             onPlanetClick={() => handleCelestialBodyClick(i)}
             onPlanetDoubleClick={() => handleCelestialBodyClick(i)}
+            showLabel={showLabels}
+            sunSize={sun.size}
           />
         </group>
       ))}

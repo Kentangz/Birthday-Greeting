@@ -10,6 +10,8 @@ function OpeningPage() {
   const [volume, setVolume] = useState(0.08);
   const [orbitSpeed, setOrbitSpeed] = useState(1);
   const [focusInfo, setFocusInfo] = useState(null);
+  const [autoTour, setAutoTour] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -42,6 +44,8 @@ function OpeningPage() {
         muted={muted}
         onFocusChange={setFocusInfo}
         solarSystemExternalRef={solarSystemRef}
+        autoTourEnabled={autoTour}
+        showLabels={showLabels}
       />
       <ShootingStarOverlay /> 
       <h1 className="main-text z-10">Happy Birthday!</h1>
@@ -66,6 +70,14 @@ function OpeningPage() {
       }}>
         <button onClick={handlePrev} style={{ padding: '6px 10px', cursor: 'pointer' }}>Prev</button>
         <button onClick={handleNext} style={{ padding: '6px 10px', cursor: 'pointer' }}>Next</button>
+
+        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
+
+        <button onClick={() => setAutoTour(v => !v)} style={{ padding: '6px 10px', cursor: 'pointer' }}>{autoTour ? 'Pause tour' : 'Play tour'}</button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
+          <span>Labels</span>
+        </label>
 
         <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
 

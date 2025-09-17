@@ -6,10 +6,14 @@ import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
 
-function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef }) {
+function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, showLabels = false }) {
   const cameraControlsRef = useRef();
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const solarSystemRef = useRef();
+
+  useEffect(() => {
+    // no-op
+  }, [autoTourEnabled, showLabels]);
 
   // ESC to reset focus
   useEffect(() => {
@@ -53,6 +57,8 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
         audioVolume={audioVolume}
         muted={muted}
         onFocusChange={onFocusChange}
+        autoTourEnabled={autoTourEnabled}
+        showLabels={showLabels}
       />
 
       <CameraControls
