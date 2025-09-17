@@ -9,13 +9,10 @@ import { useFocusCamera } from '../hooks/useFocusCamera';
 import OrbitGizmos from './OrbitGizmos';
 import Sun from './Sun';
 import PlanetGroup from './PlanetGroup';
+import { CAMERA_OFFSET_MULTIPLIER, ANIMATION_DURATION, AMBIENT_LIGHT_INTENSITY, SHOW_GIZMOS } from '../config/constants';
 
-const CAMERA_OFFSET_MULTIPLIER = 7;
 const SUN_ROTATION_SPEED = 0.0005;
-const ANIMATION_DURATION = 2.5;
 const SUN_AXIAL_TILT = 7.25;
-
-const AMBIENT_LIGHT_INTENSITY = 0.1;
 
 let sharedAudioContext = null;
 function playFocusSound(volume = 0.08, muted = false) {
@@ -141,7 +138,7 @@ const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultipli
     }
   });
 
-  const isDev = import.meta.env?.MODE !== 'production';
+  const showGizmos = Boolean(SHOW_GIZMOS);
 
   return (
     <>
@@ -160,7 +157,7 @@ const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultipli
         />
       </group>
 
-      {isDev && <OrbitGizmos planets={planets} />}
+      {showGizmos && <OrbitGizmos planets={planets} />}
 
       {planets.map((planet, i) => (
         <PlanetGroup

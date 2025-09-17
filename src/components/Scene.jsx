@@ -6,7 +6,7 @@ import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
 
-function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, showLabels = false, photoMode = false }) {
+function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, solarSystemExternalRef, autoTourEnabled = false, photoMode = false }) {
   const cameraControlsRef = useRef();
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const solarSystemRef = useRef();
@@ -69,7 +69,6 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
         muted={muted}
         onFocusChange={onFocusChange}
         autoTourEnabled={autoTourEnabled}
-        showLabels={showLabels}
         onSunMeshReady={handleSunMeshReady}
       />
 

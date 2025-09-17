@@ -1,21 +1,25 @@
 # Happy Birthday — 3D Solar System Greeting
 
-A React + Vite web experience that renders an interactive 3D solar system as a birthday greeting. Click on the Sun or any planet to smoothly focus the camera and follow it, while a starry background and subtle bloom complete the scene.
+A React + Vite experience that renders an interactive 3D solar system as a birthday greeting. Click the Sun or any planet to smoothly focus the camera and follow it, with a galaxy background, bloom, and optional ambient music.
 
 ## Features
 
-- Interactive Sun and planets with textures and axial tilt
-- Smooth focus animation and chase camera after selection
-- Cinematic starfield, galaxy background environment, and bloom
-- Decorative "shooting star" orbital trails
-- React Router with a single opening page and overlay message
+- Interactive Sun and planets with textures and realistic orbiting
+- Smooth focus transitions and follow camera after selection
+- Galaxy background, starfield feel, and bloom post‑processing
+- Shooting star overlay animations
+- Optional ambient audio (`public/textures/ambient.mp3`)
+- Opening page with overlay message (React Router)
 
 ## Tech Stack
 
-- React 19, Vite 7
-- three.js via @react-three/fiber and @react-three/drei
-- Post-processing via @react-three/postprocessing
-- React Router (react-router-dom)
+- React 19 + Vite 7
+- three.js via `@react-three/fiber` and `@react-three/drei`
+- Post‑processing via `@react-three/postprocessing` / `postprocessing`
+- React Router 7
+- Tailwind CSS 4
+- Testing: Vitest + Testing Library (JSDOM)
+- Tooling: ESLint 9, Prettier, Husky + lint-staged
 
 ## Getting Started
 
@@ -36,20 +40,53 @@ A React + Vite web experience that renders an interactive 3D solar system as a b
    npm run preview
    ```
 
+## Scripts
+
+- `npm run dev`: Start Vite dev server
+- `npm run build`: Production build
+- `npm run preview`: Preview production build
+- `npm run lint`: Run ESLint
+- `npm run format`: Prettier write
+- `npm run test`: Run tests (Vitest)
+- `npm run test:watch`: Run tests in watch mode
+
 ## Project Structure
 
-- `src/pages/OpeningPage.jsx`: Main page, renders the 3D scene and overlay text
-- `src/components/Scene.jsx`: Sets up the Canvas, camera controls, effects
-- `src/components/SolarSystem.jsx`: Sun + planets, orbits, camera focus logic
-- `src/components/Planet.jsx`: Planet mesh, rotation, optional ring
-- `src/components/SpaceBackground.jsx`: Galaxy background and environment map
-- `public/textures/`: Planet textures, Saturn ring, galaxy background
+- `src/pages/OpeningPage.jsx`: Landing page, renders scene and greeting overlay
+- `src/components/Scene.jsx`: Canvas, camera controls, effects pipeline
+- `src/components/SolarSystem.jsx`: Sun, planets, orbits, focus logic
+- `src/components/PlanetGroup.jsx`: Groups planet meshes and their orbits
+- `src/components/Sun.jsx`: Sun mesh and effects
+- `src/components/Ring.jsx`: Saturn ring mesh
+- `src/components/SpaceBackground.jsx`: Galaxy background/environment
+- `src/components/ShootingStar*.jsx`: Shooting star visuals and overlay
+- `src/components/OrbitGizmos.jsx`: Orbit helpers/gizmos for debugging
+- `src/config/planets.config.js`: Sizes, orbit radii/speeds, textures
+- `src/config/constants.js`: Misc scene constants
+- `src/hooks/useFocusCamera.js`: Focus/track camera behavior
+- `src/hooks/useAutoTour.js`: Automatic camera tour between bodies
+- `src/test/`: Smoke/a11y tests and setup
+- `public/textures/`: Planet textures, rings, galaxy background, ambient audio
 
-## Customization
+## Configuration & Customization
 
-- Update the greeting text in `src/pages/OpeningPage.jsx`
-- Adjust camera defaults and effects in `src/components/Scene.jsx`
-- Tweak orbit radii/speeds and sizes in `src/components/SolarSystem.jsx`
+- Greeting text: `src/pages/OpeningPage.jsx`
+- Camera defaults/effects: `src/components/Scene.jsx`
+- Planets, orbits, sizes: `src/config/planets.config.js`
+- Ambient audio/backgrounds: `public/textures/`
+- Camera behavior: `src/hooks/useFocusCamera.js`, `src/hooks/useAutoTour.js`
+
+## Testing
+
+- Run all tests:
+  ```bash
+  npm test
+  ```
+- Watch mode:
+  ```bash
+  npm run test:watch
+  ```
+  Tests include smoke tests for the scene and basic a11y checks.
 
 ## License
 
