@@ -1,7 +1,7 @@
-import * as THREE from 'three'
-import { useRef, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
 import { Trail, Line } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useRef, useMemo } from 'react'
+import * as THREE from 'three'
 
 // Moving particle that travels along an ellipse in the XY plane
 function EllipseRunner({ a = 6, b = 2.8, speed = 1, size = 0.2, trailLength = 20, colorHex = '#61dafb', offset = 0, rotationZ = 0 }) {

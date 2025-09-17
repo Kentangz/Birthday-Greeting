@@ -1,5 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
+
 import OpeningPage from './pages/OpeningPage';
 
 function App() {

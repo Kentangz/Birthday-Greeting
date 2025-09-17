@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react'
 import { useLoader, useFrame } from '@react-three/fiber'
+import React, { useRef, useEffect } from 'react'
 import { TextureLoader, MathUtils } from 'three'
+
 import Ring from './Ring'
 
 function PlanetGroup({ planet, groupRef, onHover, onUnhover, onClick, onDoubleClick }) {

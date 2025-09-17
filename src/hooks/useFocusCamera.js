@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Vector3 } from "three";
+
 import { easeInOutCubic } from "../utils/orbit";
 
 export function useFocusCamera({

@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
 import { useLoader, useThree } from '@react-three/fiber';
+import { useEffect } from 'react';
 import { TextureLoader, EquirectangularReflectionMapping } from 'three';
 
 function SpaceBackground() {

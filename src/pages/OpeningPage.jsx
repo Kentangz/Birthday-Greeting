@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
+
 import '../App.css';
 import Scene from '../components/Scene';
-
 import ShootingStarOverlay from '../components/ShootingStarOverlay'; 
 
 function OpeningPage() {

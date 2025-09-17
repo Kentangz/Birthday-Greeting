@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react'
 import { useLoader } from '@react-three/fiber'
+import React, { useRef, useEffect } from 'react'
 import { TextureLoader, MathUtils } from 'three'
 
 function Sun({ size, texturePath, axialTilt, onClick, onDoubleClick, onHover, onUnhover }) {

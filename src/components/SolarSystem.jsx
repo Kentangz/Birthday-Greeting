@@ -1,15 +1,16 @@
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import React, { useRef, useEffect, useState, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { MathUtils, Vector3 } from 'three';
+
+import OrbitGizmos from './OrbitGizmos';
+import PlanetGroup from './PlanetGroup';
+import Sun from './Sun';
+import { CAMERA_OFFSET_MULTIPLIER, ANIMATION_DURATION, AMBIENT_LIGHT_INTENSITY, SHOW_GIZMOS } from '../config/constants';
 import { SUN as SUN_CFG, PLANETS as PLANETS_CFG } from '../config/planets.config';
-import { getCircularOrbitPosition } from '../utils/orbit';
-import { emitFocusStatus } from '../utils/a11y';
 import { useAutoTour } from '../hooks/useAutoTour';
 import { useFocusCamera } from '../hooks/useFocusCamera';
-import OrbitGizmos from './OrbitGizmos';
-import Sun from './Sun';
-import PlanetGroup from './PlanetGroup';
-import { CAMERA_OFFSET_MULTIPLIER, ANIMATION_DURATION, AMBIENT_LIGHT_INTENSITY, SHOW_GIZMOS } from '../config/constants';
+import { emitFocusStatus } from '../utils/a11y';
+import { getCircularOrbitPosition } from '../utils/orbit';
 
 const SUN_ROTATION_SPEED = 0.0005;
 const SUN_AXIAL_TILT = 7.25;
@@ -37,7 +38,7 @@ function playFocusSound(volume = 0.08, muted = false) {
   osc.stop(now + 0.4);
 }
 
-const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
@@ -106,6 +107,45 @@ const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultipli
     }
   }, []);
 
+  // Expose imperative controls for keyboard/UI navigation
+  useImperativeHandle(ref, () => ({
+    deselectPlanet: () => {
+      deselectAndReset();
+    },
+    focusNext: () => {
+      if (isAnimating) return;
+      // Cycle: Sun (-1) -> 0 -> 1 -> ... -> last -> Sun
+      let nextIndex;
+      if (selectedBodyIndex === null) {
+        nextIndex = 0;
+      } else if (selectedBodyIndex === -1) {
+        nextIndex = 0;
+      } else if (selectedBodyIndex >= planets.length - 1) {
+        nextIndex = -1; // back to Sun
+      } else {
+        nextIndex = selectedBodyIndex + 1;
+      }
+      handleCelestialBodyClick(nextIndex);
+    },
+    focusPrev: () => {
+      if (isAnimating) return;
+      // Reverse cycle: Sun (-1) <- 0 <- 1 <- ...
+      let prevIndex;
+      if (selectedBodyIndex === null) {
+        prevIndex = planets.length - 1;
+      } else if (selectedBodyIndex === -1) {
+        prevIndex = planets.length - 1;
+      } else if (selectedBodyIndex === 0) {
+        prevIndex = -1; // to Sun
+      } else {
+        prevIndex = selectedBodyIndex - 1;
+      }
+      handleCelestialBodyClick(prevIndex);
+    },
+    // Placeholder to avoid undefined access on Enter key
+    focusHovered: () => {},
+  }), [deselectAndReset, handleCelestialBodyClick, isAnimating, planets.length, selectedBodyIndex]);
+
   useAutoTour({
     enabled: autoTourEnabled,
     isAnimating,
@@ -172,6 +212,6 @@ const SolarSystem = ({ cameraControlsRef, setControlsEnabled, orbitSpeedMultipli
       ))}
     </>
   );
-};
+});
 
 export default SolarSystem;

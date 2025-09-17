@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
 import { Stars, CameraControls } from '@react-three/drei'; 
+import { Canvas } from '@react-three/fiber';
 import { EffectComposer, Bloom, DepthOfField, Vignette, GodRays, Noise } from '@react-three/postprocessing';
+import React, { useRef, useState, useEffect } from 'react';
+
 import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
