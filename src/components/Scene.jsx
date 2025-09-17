@@ -22,12 +22,9 @@ function Scene() {
       camera={{ position: [0, 40, 80], fov: 45 }}
       onPointerMissed={handlePointerMissed}
     >
-      {/* <color attach="background" args={['black']} /> */}
       <Stars saturation={false} count={100} speed={3} />
 
       <SpaceBackground />
-      
-      {/* <ambientLight intensity={0.1} /> */}
       
       <ShootingStar />
       

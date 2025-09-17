@@ -3,15 +3,48 @@ import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { TextureLoader, MathUtils, Vector3 } from 'three';
 import Planet from './Planet';
 
-const CAMERA_OFFSET_MULTIPLIER = 5;
+// Cinematic tuning
+const CAMERA_OFFSET_MULTIPLIER = 7; 
 const SUN_ROTATION_SPEED = 0.0005;
-const ANIMATION_DURATION = 2.0;
+const ANIMATION_DURATION = 2.5;
 const SUN_AXIAL_TILT = 7.25;
 
 const SUN_LIGHT_INTENSITY = 100;
 const SUN_LIGHT_DISTANCE = 10;
 const SUN_EMISSIVE_INTENSITY = 2;
 const AMBIENT_LIGHT_INTENSITY = 0.1;
+
+// Simple WebAudio focus sound
+let sharedAudioContext = null;
+function playFocusSound() {
+  try {
+    if (!sharedAudioContext) {
+      sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = sharedAudioContext;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // Subtle whoosh: upward glide and quick fade
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(680, now + 0.25);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.4);
+  } catch {
+    // ignore audio errors (e.g., autoplay restrictions)
+  }
+}
 
 const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) => {
   const { camera } = useThree();
@@ -20,25 +53,24 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
     name: 'sun',
     texturePath: '/textures/sun.jpg',
     size: 6,
-    orbitalRadius: 0
-    orbitalSpeed: 0,
     axialTilt: SUN_AXIAL_TILT,
     isSun: true,
     rotationSpeed: SUN_ROTATION_SPEED
   }), []);
 
+  const sunTexture = useLoader(TextureLoader, sun.texturePath);
+
+  // Cinematic orbit radii/speeds (slightly larger spacing, more contrast in speeds)
   const planets = useMemo(() => [
-    { name: 'mercury', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 9, orbitalSpeed: 1.6, axialTilt: 0.03 },
-    { name: 'venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 12, orbitalSpeed: 1.2, axialTilt: 177.4 },
-    { name: 'earth', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 16, orbitalSpeed: 1.0, axialTilt: 23.44 },
-    { name: 'mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 22, orbitalSpeed: 0.8, axialTilt: 25.19 },
-    { name: 'jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 35, orbitalSpeed: 0.45, axialTilt: 3.13 },
-    { name: 'saturn', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 48, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
-    { name: 'uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 58, orbitalSpeed: 0.2, axialTilt: 97.77 },
-    { name: 'neptune', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 66, orbitalSpeed: 0.15, axialTilt: 28.32 },
+    { name: 'mercury', texturePath: '/textures/mercury.jpg', size: 0.38, orbitalRadius: 12, orbitalSpeed: 1.8, axialTilt: 0.03 },
+    { name: 'venus', texturePath: '/textures/venus.jpg', size: 0.95, orbitalRadius: 16, orbitalSpeed: 1.25, axialTilt: 177.4 },
+    { name: 'earth', texturePath: '/textures/earth.jpg', size: 1.0, orbitalRadius: 21, orbitalSpeed: 1.0, axialTilt: 23.44 },
+    { name: 'mars', texturePath: '/textures/mars.jpg', size: 0.53, orbitalRadius: 28, orbitalSpeed: 0.78, axialTilt: 25.19 },
+    { name: 'jupiter', texturePath: '/textures/jupiter.jpg', size: 2.5, orbitalRadius: 44, orbitalSpeed: 0.42, axialTilt: 3.13 },
+    { name: 'saturn', texturePath: '/textures/saturn.jpg', size: 2.2, orbitalRadius: 60, orbitalSpeed: 0.3, hasRing: true, ringTexturePath: '/textures/saturn_ring.png', axialTilt: 26.73 },
+    { name: 'uranus', texturePath: '/textures/uranus.jpg', size: 1.5, orbitalRadius: 74, orbitalSpeed: 0.2, axialTilt: 97.77 },
+    { name: 'neptune', texturePath: '/textures/neptune.jpg', size: 1.45, orbitalRadius: 86, orbitalSpeed: 0.16, axialTilt: 28.32 },
   ], []);
-
-
 
   const planetRefs = useRef([]);
   const sunRef = useRef();
@@ -60,7 +92,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
   const getCelestialBodyPosition = (bodyIndex, time, targetVector = null) => {
     if (bodyIndex === -1) {
-      // Sun is always at origin
       if (targetVector) {
         targetVector.set(0, 0, 0);
         return targetVector;
@@ -129,6 +160,9 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
     const bodyName = bodyIndex === -1 ? 'sun' : planets[bodyIndex].name;
     console.log(`Focusing on: ${bodyName}`);
+
+    // play focus sound on selection
+    playFocusSound();
     
     const currentTime = performance.now() / 1000;
     
@@ -150,7 +184,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
   }, []);
 
   useFrame(({ clock }) => {
-    // Sun rotation
     if (sunRef.current) {
       sunRef.current.rotation.y += SUN_ROTATION_SPEED; 
     }
@@ -180,7 +213,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         bodySize = planets[selectedBodyIndex].size;
       }
       
-      // target camera position
       const offsetDistance = bodySize * CAMERA_OFFSET_MULTIPLIER;
       const targetCameraPos = tempVec2.current.set(
         currentBodyPos.x,
@@ -214,7 +246,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
       let bodySize;
       
       if (selectedBodyIndex === -1) {
-        // Sun
         currentBodyPos = new Vector3(0, 0, 0);
         bodySize = sun.size;
       } else {
@@ -237,7 +268,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
 
   return (
     <>
-
       <ambientLight intensity={AMBIENT_LIGHT_INTENSITY} color={0x404040} />
       
       <group
@@ -258,8 +288,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         <mesh>
           <sphereGeometry args={[sun.size, 32, 32]} />
           <meshStandardMaterial
-            map={useLoader(TextureLoader, sun.texturePath)}
-            emissiveMap={useLoader(TextureLoader, sun.texturePath)}
+            map={sunTexture}
+            emissiveMap={sunTexture}
             emissive={0xffc100}  
             emissiveIntensity={SUN_EMISSIVE_INTENSITY}
             roughness={1.0}
@@ -286,7 +316,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled }, ref) 
         <group
           key={planet.name}
           ref={(el) => (planetRefs.current[i] = el)}
-          userData={{ size: planet.size }}
         >
           <Planet 
             {...planet} 
