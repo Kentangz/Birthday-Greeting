@@ -9,9 +9,9 @@ const SUN_ROTATION_SPEED = 0.0005;
 const ANIMATION_DURATION = 2.5;
 const SUN_AXIAL_TILT = 7.25;
 
-const SUN_LIGHT_INTENSITY = 100;
+const SUN_LIGHT_INTENSITY = 80; // reduced from 100
 const SUN_LIGHT_DISTANCE = 10;
-const SUN_EMISSIVE_INTENSITY = 2;
+const SUN_EMISSIVE_INTENSITY = 1.2; // reduced from 2
 const AMBIENT_LIGHT_INTENSITY = 0.1;
 
 let sharedAudioContext = null;
@@ -46,7 +46,7 @@ function playFocusSound(volume = 0.08, muted = false) {
   }
 }
 
-const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false, showLabels = false }, ref) => {
+const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, onFocusChange, autoTourEnabled = false, showLabels = false, onSunMeshReady }, ref) => {
   const { camera } = useThree();
 
   const sun = useMemo(() => ({
@@ -73,6 +73,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
 
   const planetRefs = useRef([]);
   const sunRef = useRef();
+  const sunMeshRef = useRef();
   
   const [selectedBodyIndex, setSelectedBodyIndex] = useState(null);
   
@@ -153,10 +154,18 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     }
   }));
   
+  useEffect(() => {
+    if (sunRef.current) {
+      sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
+    }
+    if (onSunMeshReady && sunMeshRef.current) {
+      onSunMeshReady(sunMeshRef.current);
+    }
+  }, [onSunMeshReady]);
+
   // Start immediately when enabling auto-tour and nothing is selected
   useEffect(() => {
     if (autoTourEnabled && selectedBodyIndex === null && !animationState.isAnimating) {
-      console.log('[AutoTour] starting at index 0');
       const nextIndex = 0;
       handleCelestialBodyClick(nextIndex);
     }
@@ -166,9 +175,8 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
   useEffect(() => {
     if (!autoTourEnabled) return;
     const interval = setInterval(() => {
-      if (animationState.isAnimating) return; // wait until animation done
+      if (animationState.isAnimating) return;
       const nextIndex = selectedBodyIndex === null ? 0 : (selectedBodyIndex + 1) % planets.length;
-      console.log('[AutoTour] switching to index', nextIndex);
       handleCelestialBodyClick(nextIndex);
     }, 4000);
     return () => clearInterval(interval);
@@ -204,12 +212,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
     }
   };
   
-  useEffect(() => {
-    if (sunRef.current) {
-      sunRef.current.rotation.z = MathUtils.degToRad(SUN_AXIAL_TILT);
-    }
-  }, []);
-
   useFrame(({ clock }) => {
     if (sunRef.current) {
       sunRef.current.rotation.y += SUN_ROTATION_SPEED; 
@@ -310,7 +312,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
         onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
         onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; }}
       >
-        <mesh castShadow receiveShadow>
+        <mesh ref={sunMeshRef} castShadow receiveShadow>
           <sphereGeometry args={[sun.size, 32, 32]} />
           <meshStandardMaterial
             map={sunTexture}
@@ -330,7 +332,7 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
         />
         
         <pointLight 
-          intensity={50} 
+          intensity={40} 
           distance={300}
           color={0xffe9c1}
           decay={1}
@@ -356,7 +358,6 @@ const SolarSystem = forwardRef(({ cameraControlsRef, setControlsEnabled, orbitSp
             onPlanetClick={() => handleCelestialBodyClick(i)}
             onPlanetDoubleClick={() => handleCelestialBodyClick(i)}
             showLabel={showLabels}
-            sunSize={sun.size}
           />
         </group>
       ))}

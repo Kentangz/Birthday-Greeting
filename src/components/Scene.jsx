@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stars, CameraControls } from '@react-three/drei'; 
-import { EffectComposer, Bloom, DepthOfField, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, DepthOfField, Vignette, GodRays, Noise } from '@react-three/postprocessing';
 import ShootingStar from './ShootingStar';
 import SolarSystem from './SolarSystem';
 import SpaceBackground from './SpaceBackground';
@@ -10,12 +10,12 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
   const cameraControlsRef = useRef();
   const [controlsEnabled, setControlsEnabled] = useState(true);
   const solarSystemRef = useRef();
+  const sunMeshRef = useRef(null);
 
-  useEffect(() => {
-    // no-op
-  }, [autoTourEnabled, showLabels]);
+  const handleSunMeshReady = (mesh) => {
+    sunMeshRef.current = mesh;
+  };
 
-  // ESC to reset focus
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && solarSystemRef.current) {
@@ -38,7 +38,10 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
       onPointerMissed={handlePointerMissed}
       shadows
     >
-      <Stars saturation={false} count={120} speed={3} />
+      {/* Parallax star layers */}
+      <Stars saturation={false} count={80} speed={0.5} radius={120} depth={50} factor={2} />
+      <Stars saturation={false} count={120} speed={1.5} radius={160} depth={60} factor={3} />
+      <Stars saturation={false} count={160} speed={3} radius={200} depth={80} factor={4} />
 
       <SpaceBackground />
       
@@ -59,6 +62,7 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
         onFocusChange={onFocusChange}
         autoTourEnabled={autoTourEnabled}
         showLabels={showLabels}
+        onSunMeshReady={handleSunMeshReady}
       />
 
       <CameraControls
@@ -67,9 +71,23 @@ function Scene({ orbitSpeedMultiplier = 1, audioVolume = 0.08, muted = false, on
       />
 
       <EffectComposer>
-        <Bloom mipmapBlur luminanceThreshold={1} radius={0.7} />
+        {sunMeshRef.current && (
+          <GodRays 
+            sun={sunMeshRef.current}
+            samples={32}
+            density={0.6}
+            decay={0.93}
+            weight={0.14}
+            exposure={0.28}
+            clampMax={1}
+            kernelSize={3}
+            blur={true}
+          />
+        )}
+        <Bloom mipmapBlur luminanceThreshold={1.15} radius={0.6} />
         <DepthOfField focusDistance={0.02} focalLength={0.025} bokehScale={1.5} />
-        <Vignette eskil={false} offset={0.2} darkness={0.4} />
+        <Vignette eskil={false} offset={0.2} darkness={0.22} />
+        <Noise premultiply opacity={0.035} />
       </EffectComposer>
     </Canvas>
   );
